@@ -1,0 +1,6 @@
+$TTL 86400
+@   IN  SOA ns.test.lab. admin.test.lab. (
+        2026041201 3600 1800 604800 86400 )
+@   IN  NS  ns.test.lab.
+ns  IN  A   127.0.0.1
+@   IN  A   1.2.3.4
