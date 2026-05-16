@@ -1,0 +1,132 @@
+Jupyter
+(Posiblemente no importa, pero puede que resuelva algun error)
+
+import subprocess
+subprocess.run(["ip", "route", "add", "172.20.0.0/24", "via", "10.0.0.4"], capture_output=True)
+subprocess.run(["ip", "route", "add", "10.0.2.0/24", "via", "10.0.0.4"], capture_output=True)
+
+1ra Parte
+# Laboratorio DNSSEC - Guillermo Iván Obregón Saucedo
+## Ataques de Man in-the-Middle y Criptografia de llaves
+
+#**Objetivo de la practica: ** Demostrar como es que DNSSEC Protege contra ataques en donde se manipula
+#la respuesta de una DNS (Especificamente la IP) con firmas criptograficas
+
+#|Componentes|
+
+#|Servidor DNS| Bind9 con una direccion IPV4 firmada|
+#|Red de ataque| Mininet Con topologia de 3 Hosts|
+#|Atacante| Attack.py - Modificar IP con RRSIG y Mininet para modificar IPV4 sin enviar RRSIG|
+#|Validar| DNSSEC.py Validando las llaves y las firmas recibidas |
+
+import subprocess
+import dns.message
+import dns.query
+import dns.rdatatype
+import dns.flags
+import dns.rcode
+import dns.dnssec
+import dns.name
+from scapy.all import *
+
+
+2da parte Jupyter
+result = subprocess.run(
+    ["dig", "@10.0.2.15", "test.lab", "+dnssec"],
+    capture_output=True, text=True
+)
+print(result.stdout)
+
+3ra Parte Jupyter
+
+def validate_dns(domain, resolver_ip, port=53):
+    print("=====================================")
+    print("DNS VALIDATION TEST")
+    print(f"Domain:   {domain}")
+    print(f"Resolver: {resolver_ip}")
+    print("=====================================\n")
+
+    domain_name = dns.name.from_text(domain)
+
+    # PASO 1 — dnspython envía la query (funciona dentro de Mininet)
+    print("[1] Enviando query DNS...")
+    request = dns.message.make_query(
+        domain_name, dns.rdatatype.A, use_edns=True, want_dnssec=True
+    )
+    response = dns.query.udp(request, resolver_ip, timeout=5, port=port)
+    print(f"[2] Status: {dns.rcode.to_text(response.rcode())}")
+
+    # PASO 2 — Scapy analiza los bytes raw de la respuesta
+    print("\n[3] Analizando paquete con Scapy...")
+    raw_bytes = response.to_wire()
+    dns_layer = DNS(raw_bytes)
+
+    ip_found = None
+    rrsig_found = False
+
+    for i in range(dns_layer.ancount):
+        rr = dns_layer.an[i]
+        if rr.type == 1:
+            ip_found = rr.rdata
+            print(f"    IP recibida: {ip_found}")
+        elif rr.type == 46:
+            rrsig_found = True
+            print(f"    RRSIG detectada")
+            print(f"    Algoritmo: {rr.algorithm}")
+
+    if not rrsig_found:
+        print("\n Sin RRSIG — DNS sin protección DNSSEC")
+        print(f"   IP recibida: {ip_found}")
+        print("   Cualquier IP puede ser inyectada sin detección")
+        return
+
+    # PASO 3 — dnspython valida la firma criptográfica
+    print("\n[4] Validando firma con dnspython...")
+    a_record = rrsig_rrset = None
+    for rrset in response.answer:
+        if rrset.rdtype == dns.rdatatype.A:
+            a_record = rrset
+        if rrset.rdtype == dns.rdatatype.RRSIG:
+            rrsig_rrset = rrset
+
+    req_key = dns.message.make_query(
+        domain_name, dns.rdatatype.DNSKEY, use_edns=True, want_dnssec=True
+    )
+    resp_key = dns.query.udp(req_key, resolver_ip, timeout=5, port=port)
+    dnskey_rrset = next(
+        (r for r in resp_key.answer if r.rdtype == dns.rdatatype.DNSKEY), None
+    )
+    if not dnskey_rrset:
+        print("ERROR: No DNSKEY found"); return
+
+    for key in dnskey_rrset:
+        tipo = "KSK (257)" if key.flags == 257 else "ZSK (256)"
+        print(f"    Llave: {tipo}, Algoritmo: {key.algorithm}")
+
+    try:
+        dns.dnssec.validate(a_record, rrsig_rrset, {domain_name: dnskey_rrset})
+        print("\n FINAL RESULT: DNSSEC VÁLIDO")
+        print(f"   IP {ip_found} verificada criptográficamente")
+    except dns.dnssec.ValidationFailure as e:
+        print(f"\n FINAL RESULT: DNSSEC INVÁLIDO — registro manipulado")
+        print(f"   IP recibida {ip_found} no corresponde a la firma")
+        print(f"   Reason: {e}")
+
+    print("=====================================")
+
+
+4ta parte (Validaciones)
+# Asegúrate de tener Mininet corriendo antes de ejecutar
+#IP Correcta
+validate_dns("test.lab", "10.0.2.15")
+#DNS Spoofing
+validate_dns("test.lab", "10.0.0.2")
+#DNS Stripping
+validate_dns("test.lab", "10.0.0.3")
+
+
+(Al finalizar la demo o para abrir una pagina web ejecutar esta linea)
+
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+
