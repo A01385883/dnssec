@@ -1,0 +1,13 @@
+# Sistema y herramientas
+sudo apt install -y bind9 bind9utils dnsutils dsniff mininet xterm
+
+# Docker
+sudo apt install -y docker.io docker-compose
+sudo systemctl start docker
+
+# Python
+sudo apt install -y python3-pip python3-scapy python3-dnspython
+
+# Jupyter
+sudo apt install -y jupyter-core
+pip install notebook --break-system-packages
