@@ -1,2 +1,3 @@
 # dnssec
-Codigo a usar en la Demo de dnssec este 16 de Mayo del 2026
+Demo Acerca de como es que DNSSEC funciona en un ambiente real, y que ataques puede evitar que DNS no puede detectar
+
